@@ -30,14 +30,22 @@ function track_jump(problem)
     JuMP.register(
         opt_model,
         :tracking_error,
-        2,
-        (px, py) -> tracking_error(px, py; problem.lane, problem.direction, problem.target_progress),
+        4,
+        (px, py, px_last, py_last) -> tracking_error(
+            px,
+            py,
+            px_last,
+            py_last;
+            problem.lane,
+            problem.direction,
+            problem.target_progress,
+        ),
         autodiff = true,
     )
     JuMP.@NLobjective(
         opt_model,
         JuMP.MOI.MIN_SENSE,
-        sum(tracking_error(x[1, t], x[2, t])^2 for i in 1:4, t in 1:100) +
+        sum(tracking_error(x[1, t], x[2, t], x[1, t - 1], x[2, t - 1])^2 for i in 1:4, t in 2:100) +
         sum(u[i, t]^2 for i in 1:2, t in 1:100)
     )
 
@@ -45,6 +53,8 @@ function track_jump(problem)
 
     (; x = JuMP.value.(x), u = JuMP.value.(u))
 end
+
+function track_altair(problem) end
 
 solution_jump = track_jump(problem)
 

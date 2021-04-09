@@ -1,6 +1,7 @@
-function tracking_error(px, py; lane, direction, target_progress)
+function tracking_error(px, py, px_last, py_last; lane, direction, target_progress)
     p = Point(px, py)
-    wp = next_waypoint(lane, p, direction, target_progress)
+    p_last = Point(px_last, py_last)
+    wp = next_waypoint(lane, p_last, direction, target_progress)
     mindistance(Euclidean(), wp, p)
 end
 

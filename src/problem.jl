@@ -1,5 +1,5 @@
 problem = let
-    x0 = [0, 0, 0.2, 0]
+    x0 = [0, 0, 0.01, 0]
 
     lane = Chain(Point(0.0, 0.0), Point(1.0, 0.0), Point(2.0, 1.0), Point(3.0, 1.0))
 
@@ -26,7 +26,7 @@ problem = let
 
     direction = SA[1, 0]
 
-    target_progress = 0.05
+    target_progress = 0.1
 
     (; x0, lane, dynamics, direction, target_progress)
 end
