@@ -13,8 +13,8 @@ include("tracking_utils.jl")
 function track_jump(problem)
 
     opt_model = JuMP.Model(Ipopt.Optimizer)
-    x = JuMP.@variable(opt_model, [1:4, 1:100])
-    u = JuMP.@variable(opt_model, [1:2, 1:100])
+    x = JuMP.@variable(opt_model, [1:4, 1:(problem.n_timesteps)])
+    u = JuMP.@variable(opt_model, [1:2, 1:(problem.n_timesteps)])
 
     # initial condition
     JuMP.@constraint(opt_model, x[:, 1] .== problem.x0)
@@ -38,15 +38,17 @@ function track_jump(problem)
             py_last;
             problem.lane,
             problem.direction,
-            problem.target_progress,
+            problem.step_distance,
         ),
         autodiff = true,
     )
     JuMP.@NLobjective(
         opt_model,
         JuMP.MOI.MIN_SENSE,
-        sum(tracking_error(x[1, t], x[2, t], x[1, t - 1], x[2, t - 1])^2 for i in 1:4, t in 2:100) +
-        sum(u[i, t]^2 for i in 1:2, t in 1:100)
+        sum(
+            tracking_error(x[1, t], x[2, t], x[1, t - 1], x[2, t - 1])^2
+            for i in 1:4, t in 2:(problem.n_timesteps)
+        ) + 0 * sum(u[i, t]^2 for i in 1:2, t in 1:(problem.n_timesteps))
     )
 
     JuMP.optimize!(opt_model)
