@@ -57,4 +57,3 @@ function move_along_chain(points_on_chain, step_distance)
 
     next_point
 end
-

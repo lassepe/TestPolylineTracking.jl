@@ -19,6 +19,16 @@ function track_jump(problem)
     # initial condition
     JuMP.@constraint(opt_model, x[:, 1] .== problem.x0)
 
+    p0 = Point(problem.x0[1], problem.x0[2])
+    nominal_waypoints = [
+        coordinates(next_waypoint(
+            problem.lane,
+            p0,
+            problem.direction,
+            t * problem.step_distance,
+        )) for t in 0:(problem.n_timesteps - 1)
+    ]
+
     # dynamics
     JuMP.@constraint(
         opt_model,
@@ -42,13 +52,19 @@ function track_jump(problem)
         ),
         autodiff = true,
     )
-    JuMP.@NLobjective(
+    # JuMP.@NLobjective(
+    #     opt_model,
+    #     JuMP.MOI.MIN_SENSE,
+    #     sum(
+    #         tracking_error(x[1, t], x[2, t], x[1, t - 1], x[2, t - 1])^2
+    #         for i in 1:4, t in 2:(problem.n_timesteps)
+    #     ) + sum(u[i, t]^2 for i in 1:2, t in 1:(problem.n_timesteps))
+    # )
+    JuMP.@objective(
         opt_model,
         JuMP.MOI.MIN_SENSE,
-        sum(
-            tracking_error(x[1, t], x[2, t], x[1, t - 1], x[2, t - 1])^2
-            for i in 1:4, t in 2:(problem.n_timesteps)
-        ) + sum(u[i, t]^2 for i in 1:2, t in 1:(problem.n_timesteps))
+        sum((x[i, t] - nominal_waypoints[t][i])^2 for i in 1:2, t in 1:(problem.n_timesteps))
+        + 0.1 * sum(u.^2)
     )
 
     JuMP.optimize!(opt_model)
