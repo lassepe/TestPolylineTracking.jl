@@ -48,7 +48,7 @@ function track_jump(problem)
         sum(
             tracking_error(x[1, t], x[2, t], x[1, t - 1], x[2, t - 1])^2
             for i in 1:4, t in 2:(problem.n_timesteps)
-        ) + 0 * sum(u[i, t]^2 for i in 1:2, t in 1:(problem.n_timesteps))
+        ) + sum(u[i, t]^2 for i in 1:2, t in 1:(problem.n_timesteps))
     )
 
     JuMP.optimize!(opt_model)

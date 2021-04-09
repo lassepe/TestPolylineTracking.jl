@@ -28,7 +28,7 @@ problem = let
     total_path_length = sum(Meshes.measure, Meshes.segments(lane))
     step_distance = total_path_length / (n_timesteps  - 1)
     v_nominal = step_distance / Δt
-    x0 = [0, 0.0, v_nominal, 0]
+    x0 = [0, -0.1, v_nominal, 0]
 
     direction = SA[1, 0]
 
