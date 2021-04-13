@@ -1,19 +1,12 @@
-function tracking_error(px, py, px_last, py_last; lane, direction, step_distance)
-    p = Point(px, py)
-    p_last = Point(px_last, py_last)
-    wp = next_waypoint(lane, p_last, direction, step_distance)
-    mindistance(Euclidean(), wp, p)
-end
-
-function next_waypoint(lane, current_position, direction, step_distance)
+function next_waypoint(lane, position, direction, step_distance)
     metric = Euclidean()
     segments = collect(Meshes.segments(lane))
     closest = reduce(
         enumerate(segments);
         init = (; xte = Inf, lane_point = first(vertices(lane)), segment = first(segments), i = 0),
     ) do best, (i, segment)
-        lane_point = closest_point(metric, segment, current_position)
-        xte = mindistance(metric, lane_point, current_position)
+        lane_point = closest_point(metric, segment, position)
+        xte = mindistance(metric, lane_point, position)
         xte < best.xte ? (; xte, lane_point, segment, i) : best
     end
 
@@ -48,8 +41,7 @@ function move_along_chain(points_on_chain, step_distance)
             moved_distance += max_step_distance
         else
             next_point = Point(
-                coordinates(next_point) +
-                (step_distance - moved_distance) * normalize(step_vector),
+                coordinates(next_point) + (step_distance - moved_distance) * normalize(step_vector),
             )
             moved_distance = step_distance
         end

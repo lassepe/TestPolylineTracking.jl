@@ -9,72 +9,50 @@ using StaticArrays: SA
 
 include("problem.jl")
 include("tracking_utils.jl")
+include("jump_objective_utils.jl")
 
-function track_jump(problem)
+function dynamic_tracking_cost(x, u; problem)
+    sum(2:(problem.n_timesteps)) do t
+        p = Point(x[1, t], x[2, t])
+        p_previous = Point(x[1, t - 1], x[2, t - 1])
+        wp = next_waypoint(problem.lane, p_previous, problem.direction, problem.step_distance)
+        4 * mindistance(Euclidean(), wp, p)^2
+    end + sum(u .^ 2)
+end
+
+function static_tracking_cost(x, u; problem)
+    p0 = Point(problem.x0[problem.position_indices]...)
+    nominal_waypoints = mapreduce(hcat, 0:(problem.n_timesteps - 1)) do t
+        coordinates(next_waypoint(problem.lane, p0, problem.direction, t * problem.step_distance))
+    end
+    sum((x[problem.position_indices, :] .- nominal_waypoints) .^ 2) + 0.1 * sum(u .^ 2)
+end
+
+function track_jump(objective, problem)
+    n_states, n_controls = size(problem.dynamics.B)
 
     opt_model = JuMP.Model(Ipopt.Optimizer)
-    x = JuMP.@variable(opt_model, [1:4, 1:(problem.n_timesteps)])
-    u = JuMP.@variable(opt_model, [1:2, 1:(problem.n_timesteps)])
+    x = JuMP.@variable(opt_model, [1:n_states, 1:(problem.n_timesteps)])
+    u = JuMP.@variable(opt_model, [1:n_controls, 1:(problem.n_timesteps)])
 
     # initial condition
     JuMP.@constraint(opt_model, x[:, 1] .== problem.x0)
 
-    p0 = Point(problem.x0[1], problem.x0[2])
-    nominal_waypoints = [
-        coordinates(next_waypoint(
-            problem.lane,
-            p0,
-            problem.direction,
-            t * problem.step_distance,
-        )) for t in 0:(problem.n_timesteps - 1)
-    ]
-
     # dynamics
     JuMP.@constraint(
         opt_model,
-        [t = 1:99],
+        [t = 1:(problem.n_timesteps - 1)],
         x[:, t + 1] .== problem.dynamics.A * x[:, t] + problem.dynamics.B * u[:, t]
     )
 
-    # tracking objective
-    JuMP.register(
-        opt_model,
-        :tracking_error,
-        4,
-        (px, py, px_last, py_last) -> tracking_error(
-            px,
-            py,
-            px_last,
-            py_last;
-            problem.lane,
-            problem.direction,
-            problem.step_distance,
-        ),
-        autodiff = true,
-    )
-    # JuMP.@NLobjective(
-    #     opt_model,
-    #     JuMP.MOI.MIN_SENSE,
-    #     sum(
-    #         tracking_error(x[1, t], x[2, t], x[1, t - 1], x[2, t - 1])^2
-    #         for i in 1:4, t in 2:(problem.n_timesteps)
-    #     ) + sum(u[i, t]^2 for i in 1:2, t in 1:(problem.n_timesteps))
-    # )
-    JuMP.@objective(
-        opt_model,
-        JuMP.MOI.MIN_SENSE,
-        sum((x[i, t] - nominal_waypoints[t][i])^2 for i in 1:2, t in 1:(problem.n_timesteps))
-        + 0.1 * sum(u.^2)
-    )
+    add_objective!(opt_model, objective, x, u; problem)
 
     JuMP.optimize!(opt_model)
 
     (; x = JuMP.value.(x), u = JuMP.value.(u))
 end
 
-function track_altair(problem) end
-
-solution_jump = track_jump(problem)
+solution_jump = track_jump(QuadraticJuMPObjective(static_tracking_cost), problem)
 
 function trajectory_viz(x)
     data = [(; px = xt[1], py = xt[2], t) for (t, xt) in enumerate(eachcol(x))]
