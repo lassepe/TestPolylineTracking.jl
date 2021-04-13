@@ -53,7 +53,6 @@ function add_objective!(
     JuMP.@NLobjective(opt_model, JuMP.MOI.MIN_SENSE, cost(flattened_decision_variables...))
 end
 
-
 """
     QuadraticJuMPObjective
 

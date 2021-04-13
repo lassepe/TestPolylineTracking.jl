@@ -16,7 +16,7 @@ function dynamic_tracking_cost(x, u; problem)
         p = Point(x[1, t], x[2, t])
         p_previous = Point(x[1, t - 1], x[2, t - 1])
         wp = next_waypoint(problem.lane, p_previous, problem.direction, problem.step_distance)
-        4 * mindistance(Euclidean(), wp, p)^2
+        mindistance(SqEuclidean(), wp, p)
     end + sum(u .^ 2)
 end
 
@@ -52,7 +52,7 @@ function track_jump(objective, problem)
     (; x = JuMP.value.(x), u = JuMP.value.(u))
 end
 
-solution_jump = track_jump(NonlinearJuMPObjective(static_tracking_cost), problem)
+solution_jump = track_jump(QuadraticJuMPObjective(static_tracking_cost), problem)
 
 function trajectory_viz(x)
     data = [(; px = xt[1], py = xt[2], t) for (t, xt) in enumerate(eachcol(x))]
