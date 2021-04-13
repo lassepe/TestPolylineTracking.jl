@@ -6,10 +6,10 @@ using Distances: Euclidean, SqEuclidean
 using VegaLite: @vlplot
 using LinearAlgebra: norm, normalize, ⋅
 using StaticArrays: SA
+using JuMPObjectiveUtils: NonlinearJuMPObjective, QuadraticJuMPObjective, add_objective!
 
 include("problem.jl")
 include("tracking_utils.jl")
-include("jump_objective_utils.jl")
 
 function dynamic_tracking_cost(x, u; problem)
     sum(2:(problem.n_timesteps)) do t
@@ -52,7 +52,7 @@ function track_jump(objective, problem)
     (; x = JuMP.value.(x), u = JuMP.value.(u))
 end
 
-solution_jump = track_jump(QuadraticJuMPObjective(static_tracking_cost), problem)
+solution_jump = track_jump(NonlinearJuMPObjective(static_tracking_cost), problem)
 
 function trajectory_viz(x)
     data = [(; px = xt[1], py = xt[2], t) for (t, xt) in enumerate(eachcol(x))]
