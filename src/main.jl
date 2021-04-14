@@ -38,6 +38,14 @@ function track_jump(objective, problem)
     # initial condition
     JuMP.@constraint(opt_model, x[:, 1] .== problem.x0)
 
+    for obstacle in problem.obstacles
+        JuMP.@constraint(
+            opt_model,
+            [t = 1:(problem.n_timesteps)],
+            sum((x[problem.position_indices, t] .- obstacle.position) .^ 2) >= obstacle.radius^2
+        )
+    end
+
     # dynamics
     JuMP.@constraint(
         opt_model,
@@ -52,20 +60,33 @@ function track_jump(objective, problem)
     (; x = JuMP.value.(x), u = JuMP.value.(u))
 end
 
-solution_jump = track_jump(NonlinearJuMPObjective(static_tracking_cost), problem)
+solution_jump = track_jump(QuadraticJuMPObjective(static_tracking_cost), problem)
+
+function named_coordinates(vector)
+    (; x = vector[1], y = vector[2])
+end
 
 function trajectory_viz(x)
-    data = [(; px = xt[1], py = xt[2], t) for (t, xt) in enumerate(eachcol(x))]
-    visualizer = @vlplot("point", x = "px:q", y = "py:q", color = "t:q", order = "t:q")
+    data = [(; named_coordinates(xt)..., t) for (t, xt) in enumerate(eachcol(x))]
+    visualizer = @vlplot("point", x = "x:q", y = "y:q", color = "t:q", order = "t:q")
+    data |> visualizer
+end
+
+function obstacle_viz(obstacle)
+    data = [(; named_coordinates(obstacle.position)..., obstacle.radius)]
+    println(data)
+    visualizer =
+        @vlplot("point", "x:q", "y:q", size = {type = "quantitative", expr = "datum.radius * 1000"})
     data |> visualizer
 end
 
 function lane_viz(lane)
-    data = [
-        (; x = coordinates(p)[1], y = coordinates(p)[2], i) for (i, p) in enumerate(vertices(lane))
-    ]
+    data = [(; named_coordinates(coordinates(p))..., i) for (i, p) in enumerate(vertices(lane))]
     visualizer = @vlplot(:line, "x:q", "y:q")
     data |> visualizer
 end
 
-@vlplot(height = 300, width = 900) + lane_viz(problem.lane) + trajectory_viz(solution_jump.x)
+@vlplot(height = 300, width = 900) +
+lane_viz(problem.lane) +
+trajectory_viz(solution_jump.x) +
+sum(obstacle_viz, problem.obstacles; init = @vlplot())
